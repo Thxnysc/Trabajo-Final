@@ -1,4 +1,5 @@
-int x;
-int y;
-x = 5;
-y = x + 3;
+fun sumar(a:int, b:int)
+    x:int
+    x = a + b
+    return x
+end

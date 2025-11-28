@@ -1,2 +1,4 @@
-int x
-x = 10;
+fun prueba(x:int)
+    y:int
+    y = x + 1
+    return y

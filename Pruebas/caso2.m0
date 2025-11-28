@@ -1,6 +1,9 @@
-int a;
-int b;
-if (a > b)
-    a = a - 1;
-else
-    b = b + 2;
+fun procesar(arr[][]int)
+    i:int
+    i = 0
+    while i < 3
+        arr[i] = i + 1
+        i = i + 1
+    loop
+    return arr[1]
+end

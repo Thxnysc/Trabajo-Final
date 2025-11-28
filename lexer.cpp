@@ -1,116 +1,164 @@
-// ===============================================
-// lexer.cpp
-// Implementacion del analizador lexico
-// ===============================================
-
 #include "lexer.h"
-#include <cctype>   // Para funciones isdigit, isalpha, etc
+#include <iostream>
+#include <cctype>
 
-// Constructor: inicializa el texto, posicion y linea
-Lexer::Lexer(const string& text)
-    : source(text), pos(0), line(1) {}
+using namespace std;
 
-// Indica si llegamos al final del archivo
-bool Lexer::isAtEnd() const {
-    return pos >= source.size();
+Lexer::Lexer(const string& src)
+    : text(src), pos(0), line(1) {}
+
+char Lexer::peek() {
+    return pos < (int)text.size() ? text[pos] : '\0';
 }
 
-// Devuelve el caracter actual sin avanzar
-char Lexer::peek() const {
-    if (isAtEnd()) return '\0';
-    return source[pos];
+char Lexer::get() {
+    return pos < (int)text.size() ? text[pos++] : '\0';
 }
 
-// Devuelve el siguiente caracter sin avanzar
-char Lexer::peekNext() const {
-    if (pos + 1 >= source.size()) return '\0';
-    return source[pos + 1];
+bool Lexer::eof() {
+    return pos >= (int)text.size();
 }
 
-// Avanza un caracter y lo devuelve
-char Lexer::advance() {
-    if (isAtEnd()) return '\0';
-    char c = source[pos++];
-    if (c == '\n') line++; // Si es salto de linea, actualiza el contador
-    return c;
-}
-
-// Salta espacios en blanco y comentarios
-void Lexer::skipWhitespaceAndComments() {
-    while (!isAtEnd()) {
-        char c = peek();
-
-        if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-            advance();  // Ignora espacios
-        else if (c == '/' && peekNext() == '/')
-            while (!isAtEnd() && peek() != '\n') advance(); // Comentario de linea
-        else
-            break; // Si ya no es espacio ni comentario, salir
-    }
-}
-
-// Procesa identificadores o palabras clave
-Token Lexer::identifierOrKeyword() {
-    string lex;
-
-    while (!isAtEnd() && (isalnum(peek()) || peek() == '_'))
-        lex.push_back(advance());  // Agrega cada caracter al lexema
-
-    // Verifica palabras clave
-    if (lex == "int") return {TokenType::INT, lex, line};
-    if (lex == "if") return {TokenType::IF, lex, line};
-    if (lex == "else") return {TokenType::ELSE, lex, line};
-
-    return {TokenType::ID, lex, line}; // Si no es keyword, es ID
-}
-
-// Procesa numeros
-Token Lexer::number() {
-    string lex;
-    while (!isAtEnd() && isdigit(peek()))
-        lex.push_back(advance());
-    return {TokenType::NUM, lex, line};
-}
-
-// Devuelve el siguiente token del archivo
 Token Lexer::nextToken() {
-    skipWhitespaceAndComments(); // Primero ignora basura
+    Token tok;
+    tok.lexema = "";
+    tok.line = line;
 
-    if (isAtEnd())
-        return {TokenType::END_OF_FILE, "", line};
+    while (!eof() && (peek() == ' ' || peek() == '\t' || peek() == '\r'))
+        get();
 
-    char c = advance();
-
-    // Identificadores
-    if (isalpha(c) || c == '_') { pos--; return identifierOrKeyword(); }
-
-    // Numeros
-    if (isdigit(c)) { pos--; return number(); }
-
-    // Simbolos individuales
-    switch (c) {
-        case '(': return {TokenType::LPAREN, "(", line};
-        case ')': return {TokenType::RPAREN, ")", line};
-        case '{': return {TokenType::LBRACE, "{", line};
-        case '}': return {TokenType::RBRACE, "}", line};
-        case ';': return {TokenType::SEMI, ";", line};
-        case '+': return {TokenType::PLUS, "+", line};
-        case '-': return {TokenType::MINUS, "-", line};
-        case '*': return {TokenType::STAR, "*", line};
-        case '/': return {TokenType::SLASH, "/", line};
-        case '<': return {TokenType::LT, "<", line};
-        case '>': return {TokenType::GT, ">", line};
-
-        case '=':
-            if (peek() == '=') { advance(); return {TokenType::EQEQ, "==", line}; }
-            return {TokenType::ASSIGN, "=", line};
-
-        case '!':
-            if (peek() == '=') { advance(); return {TokenType::NEQ, "!=", line}; }
-            return {TokenType::ERROR, "!", line};
+    if (!eof() && peek() == '\n') {
+        get();
+        tok.type = T_NL;
+        tok.lexema = "NL";
+        line++;
+        return tok;
     }
 
-    // Caracter desconocido
-    string lex(1, c);
-    return {TokenType::ERROR, lex, line};
+    if (eof()) {
+        tok.type = T_EOF;
+        return tok;
+    }
+
+    char c = peek();
+
+    if (c == '/' && pos + 1 < (int)text.size() && text[pos+1] == '/') {
+        get();
+        get();
+        while (!eof() && peek() != '\n')
+            get();
+        return nextToken();
+    }
+
+    if (isalpha(c) || c == '_') {
+        while (!eof() && (isalnum(peek()) || peek() == '_'))
+            tok.lexema += get();
+
+        if      (tok.lexema == "fun") tok.type = T_FUN;
+        else if (tok.lexema == "if") tok.type = T_IF;
+        else if (tok.lexema == "else") tok.type = T_ELSE;
+        else if (tok.lexema == "while") tok.type = T_WHILE;
+        else if (tok.lexema == "end") tok.type = T_END;
+        else if (tok.lexema == "loop") tok.type = T_LOOP;
+        else if (tok.lexema == "return") tok.type = T_RETURN;
+        else if (tok.lexema == "new") tok.type = T_NEW;
+        else if (tok.lexema == "true") tok.type = T_TRUE;
+        else if (tok.lexema == "false") tok.type = T_FALSE;
+        else if (tok.lexema == "int") tok.type = T_INT;
+        else if (tok.lexema == "bool") tok.type = T_BOOL;
+        else if (tok.lexema == "char") tok.type = T_CHAR;
+        else if (tok.lexema == "string") tok.type = T_STRING;
+        else if (tok.lexema == "or") tok.type = T_OR;
+        else if (tok.lexema == "and") tok.type = T_AND;
+        else if (tok.lexema == "not") tok.type = T_NOT;
+        else tok.type = T_ID;
+
+        return tok;
+    }
+
+    if (isdigit(c)) {
+        while (!eof() && isdigit(peek()))
+            tok.lexema += get();
+
+        if (!eof() && isalpha(peek())) {
+            while (!eof() && isalnum(peek()))
+                tok.lexema += get();
+            tok.type = T_ERROR;
+            return tok;
+        }
+
+        tok.type = T_NUM;
+        return tok;
+    }
+
+    if (c == '"') {
+        get();
+        bool closed = false;
+
+        while (!eof()) {
+            if (peek() == '"') {
+                get();
+                closed = true;
+                break;
+            }
+            if (peek() == '\n') break;
+            tok.lexema += get();
+        }
+
+        if (!closed) {
+            tok.type = T_ERROR;
+            return tok;
+        }
+
+        tok.type = T_STR;
+        return tok;
+    }
+
+    if (!eof()) {
+        char n = (pos + 1 < (int)text.size()) ? text[pos+1] : '\0';
+
+        if (c == '>' && n == '=') { get(); get(); tok.type = T_GE; tok.lexema = ">="; return tok; }
+        if (c == '<' && n == '=') { get(); get(); tok.type = T_LE; tok.lexema = "<="; return tok; }
+        if (c == '=' && n == '=') { get(); get(); tok.type = T_EQ; tok.lexema = "=="; return tok; }
+        if (c == '<' && n == '>') { get(); get(); tok.type = T_NEQ; tok.lexema = "<>"; return tok; }
+    }
+
+    get();
+
+    switch (c) {
+        case '>': tok.type = T_GT; tok.lexema = ">"; return tok;
+        case '<': tok.type = T_LT; tok.lexema = "<"; return tok;
+        case '+': tok.type = T_PLUS; tok.lexema = "+"; return tok;
+        case '-': tok.type = T_MINUS; tok.lexema = "-"; return tok;
+        case '*': tok.type = T_MUL; tok.lexema = "*"; return tok;
+        case '/': tok.type = T_DIV; tok.lexema = "/"; return tok;
+        case '=': tok.type = T_ASSIGN; tok.lexema = "="; return tok;
+        case '[': tok.type = T_LBRACK; tok.lexema = "["; return tok;
+        case ']': tok.type = T_RBRACK; tok.lexema = "]"; return tok;
+        case '(' : tok.type = T_LPAREN; tok.lexema = "("; return tok;
+        case ')' : tok.type = T_RPAREN; tok.lexema = ")"; return tok;
+        case ',' : tok.type = T_COMMA; tok.lexema = ","; return tok;
+        case ':' : tok.type = T_COLON; tok.lexema = ":"; return tok;
+    }
+
+    tok.type = T_ERROR;
+    tok.lexema = string(1, c);
+    return tok;
+}
+
+Token Lexer::peekToken() {
+    int oldPos = pos;
+    int oldLine = line;
+    Token t = nextToken();
+    pos = oldPos;
+    line = oldLine;
+    return t;
+}
+
+void Lexer::scanAndPrint() {
+    Token tok;
+    do {
+        tok = nextToken();
+        cout << tok.lexema << " (" << tok.type << ")\n";
+    } while (tok.type != T_EOF);
 }

@@ -1,2 +1,6 @@
-int x;
-x = 5 @ 3;
+fun test()
+    a:int
+    a = 10
+    b = @5     // '@' es símbolo ilegal
+    return a
+end

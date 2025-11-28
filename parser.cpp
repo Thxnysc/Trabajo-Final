@@ -1,382 +1,518 @@
-// ===============================================
-// parser.cpp
-// Implementacion del parser recursivo descendente
-// Cada linea esta comentada para explicar su funcion
-// ===============================================
-
-#include "parser.h"     // Incluimos la cabecera del parser
-#include <iostream>      // Para imprimir errores o mensajes
+#include "parser.h"
+#include <iostream>
+#include <cstdlib>
 
 using namespace std;
 
-// ---------------------------------------------------------------
-// Constructor del parser
-// ---------------------------------------------------------------
-Parser::Parser(Lexer& lex)      // El constructor recibe una referencia al lexer
-    : lexer(lex)                // Guardamos la referencia en el atributo interno
+// ===================================================================
+// CONSTRUCTOR
+// ===================================================================
+Parser::Parser(Lexer& lex)
+    : lexer(lex) 
 {
-    current = lexer.nextToken(); // Leemos el primer token inmediatamente
+    advance();
 }
 
-// ===============================================================
-// Recorre TODO el código fuente y va imprimiendo:
-// ===============================================================
-void Lexer::scanAndPrint() {
-
-    Token tok;  // Variable que almacenará el token actual
-
-    do {
-        // Pedimos el siguiente token del analizador léxico
-        tok = nextToken();
-
-        // Imprimimos la línea donde fue encontrado
-        cout << "Linea " << tok.line << " -> ";
-
-        // Mostramos el texto tal como aparece en el archivo
-        cout << "Lexema: '" << tok.lexeme << "'  |  ";
-
-        // Dependiendo del tipo de token, escribimos su nombre
-        switch (tok.type) {
-
-            case TokenType::INT:
-                cout << "Token: INT"; 
-                break;
-
-            case TokenType::IF:
-                cout << "Token: IF"; 
-                break;
-
-            case TokenType::ELSE:
-                cout << "Token: ELSE"; 
-                break;
-
-            case TokenType::ID:
-                cout << "Token: ID"; 
-                break;
-
-            case TokenType::NUM:
-                cout << "Token: NUM"; 
-                break;
-
-            case TokenType::LPAREN:
-                cout << "Token: LPAREN"; 
-                break;
-
-            case TokenType::RPAREN:
-                cout << "Token: RPAREN"; 
-                break;
-
-            case TokenType::LBRACE:
-                cout << "Token: LBRACE"; 
-                break;
-
-            case TokenType::RBRACE:
-                cout << "Token: RBRACE"; 
-                break;
-
-            case TokenType::SEMI:
-                cout << "Token: SEMI"; 
-                break;
-
-            case TokenType::ASSIGN:
-                cout << "Token: ASSIGN"; 
-                break;
-
-            case TokenType::PLUS:
-                cout << "Token: PLUS"; 
-                break;
-
-            case TokenType::MINUS:
-                cout << "Token: MINUS"; 
-                break;
-
-            case TokenType::STAR:
-                cout << "Token: STAR"; 
-                break;
-
-            case TokenType::SLASH:
-                cout << "Token: SLASH"; 
-                break;
-
-            case TokenType::LT:
-                cout << "Token: LT"; 
-                break;
-
-            case TokenType::GT:
-                cout << "Token: GT"; 
-                break;
-
-            case TokenType::EQEQ:
-                cout << "Token: EQEQ"; 
-                break;
-
-            case TokenType::NEQ:
-                cout << "Token: NEQ"; 
-                break;
-
-            case TokenType::END_OF_FILE:
-                cout << "Token: EOF"; 
-                break;
-
-            // Cuando el token es ERROR, aquí lo mostramos claramente
-            case TokenType::ERROR:
-                cout << "ERROR: simbolo no reconocido"; 
-                break;
-        }
-
-        cout << endl; // Salto de línea después de cada token impreso
-
-    } while (tok.type != TokenType::END_OF_FILE); // Termina al llegar a EOF
+// ===================================================================
+void Parser::advance() {
+    current = lexer.nextToken();
 }
 
-// ---------------------------------------------------------------
-// Manejo de errores sintacticos
-// ---------------------------------------------------------------
-void Parser::syntaxError(const string& msg) {
-    cerr << "Error sintactico en linea "
-         << current.line                  // Imprime en que linea ocurrio el error
-         << ": " << msg                   // Imprime el mensaje especifico
-         << " (token: '" << current.lexeme << "')"  // Indica el lexema problematico
-         << endl;
-    throw runtime_error("syntax");         // Lanza una excepcion para detener el analisis
+// ===================================================================
+bool Parser::check(TokenType t) {
+    return current.type == t;
 }
 
-// ---------------------------------------------------------------
-// Manejo de errores lexicos
-// ---------------------------------------------------------------
-void Parser::lexicalError(const Token& tok) {
-    cerr << "Error lexico en linea "
-         << tok.line                       // Linea donde esta el error lexico
-         << ": simbolo '" << tok.lexeme    // Caracter problematico
-         << "' no reconocido" << endl;
-    throw runtime_error("lexical");        // Detiene el parser
-}
-
-// ---------------------------------------------------------------
-// match()
-// Verifica que el token actual sea el esperado, si lo es avanza,
-// si no, lanza error
-// ---------------------------------------------------------------
-void Parser::match(TokenType t) {
-
-    if (current.type == TokenType::ERROR)   // Si el token actual es un token de error
-        lexicalError(current);              // Lanzamos error lexico
-
-    if (current.type == t)                  // Si coincide con lo esperado
-        current = lexer.nextToken();        // Avanzamos al siguiente token
-    else
-        syntaxError("se esperaba otro token"); // Error si no coincide
-}
-
-// ===============================================================
-// AQUI EMPIEZAN LAS REGLAS DE LA GRAMATICA MINI-0
-// ===============================================================
-
-// ---------------------------------------------------------------
-// program -> decls stmts
-// ---------------------------------------------------------------
-void Parser::program() {
-    decls();                                 // Analiza las declaraciones
-    stmts();                                 // Analiza las sentencias
-
-    if (current.type != TokenType::END_OF_FILE)  // Si quedan tokens despues del analisis
-        syntaxError("se esperaba fin de archivo"); // El programa es incorrecto
-}
-
-// ---------------------------------------------------------------
-// decls -> decl decls | epsilon
-// ---------------------------------------------------------------
-void Parser::decls() {
-
-    if (current.type == TokenType::INT) {    // Si inicia con 'int', hay una declaracion
-        decl();                              // Procesa la declaracion
-        decls();                             // LLamado recursivo para mas declaraciones
+// ===================================================================
+void Parser::expect(TokenType t) {
+    if (!check(t)) {
+        error("Se esperaba token '" + tokenToString(t) + "'");
     }
-    // Si no empieza con 'int', significa epsilon
+    advance();
 }
 
-// ---------------------------------------------------------------
-// decl -> int ID ;
-// ---------------------------------------------------------------
+// ===================================================================
+void Parser::error(const string& msg) {
+    cerr << "\n[Linea " << current.line << "] ERROR SINTACTICO\n";
+    cerr << "  → " << msg << "\n";
+    cerr << "  → Encontrado: '" << current.lexema << "'\n";
+    exit(1);
+}
+
+// ===================================================================
+void Parser::parse() {
+    programa();
+
+    if (!check(T_EOF)) {
+        error("Se esperaba fin de archivo");
+    }
+
+    cout << "\nAnalisis sintactico exitoso.\n";
+}
+
+// ===================================================================
+// ======================= GRAMATICA COMPLETA ========================
+// ===================================================================
+
+// programa → ListaNL decl ListaDecl
+void Parser::programa() {
+    ListaNL();
+    decl();
+    ListaDecl();
+}
+
+// ListaNL → NL ListaNL | ε
+void Parser::ListaNL() {
+    while (check(T_NL)) {
+        advance();
+    }
+}
+
+// ListaDecl → decl ListaDecl | ε
+void Parser::ListaDecl() {
+    while (check(T_FUN) || check(T_ID)) {
+        decl();
+    }
+}
+
+// decl → funcion | global
 void Parser::decl() {
-
-    match(TokenType::INT);                    // Consume la palabra clave int
-    match(TokenType::ID);                     // Consume el identificador
-    match(TokenType::SEMI);                   // Consume el punto y coma
+    if (check(T_FUN))
+        funcion();
+    else
+        global_();
 }
 
-// ---------------------------------------------------------------
-// stmts -> stmt stmts | epsilon
-// ---------------------------------------------------------------
-void Parser::stmts() {
-
-    if (current.type == TokenType::ID ||      // Si la sentencia inicia con ID
-        current.type == TokenType::IF ||      // o con if
-        current.type == TokenType::LBRACE)    // o con '{'
-    {
-        stmt();                               // Procesamos una sentencia
-        stmts();                              // LLamado recursivo para mas sentencias
-    }
-    // Si no coincide, es epsilon
+// global → declvar nl
+void Parser::global_() {
+    declvar();
+    nl();
 }
 
-// ---------------------------------------------------------------
-// stmt -> assign ';'
-//       | if '(' cond ')' stmt stmt_else
-//       | '{' stmts '}'
-// ---------------------------------------------------------------
-void Parser::stmt() {
+// funcion → 'fun' ID '(' params ')' TipoRet nl bloque 'end' nl
+void Parser::funcion() {
+    expect(T_FUN);
+    expect(T_ID);
+    expect(T_LPAREN);
+    params();
+    expect(T_RPAREN);
+    TipoRet();
+    nl();
+    bloque();
+    expect(T_END);
+    nl();
+}
 
-    if (current.type == TokenType::ID) {       // Caso: sentencia de asignacion
-        assign();                              // Procesa la asignacion
-        match(TokenType::SEMI);                // Consume ';'
+// TipoRet → ':' tipo | ε
+void Parser::TipoRet() {
+    if (check(T_COLON)) {
+        expect(T_COLON);
+        tipo();
+    }
+}
+
+// nl → NL ListaNL
+void Parser::nl() {
+    expect(T_NL);
+    ListaNL();
+}
+
+// bloque → ListaDeclVar ListaComando
+void Parser::bloque() {
+    ListaDeclVar();
+    ListaComando();
+}
+
+// ListaDeclVar → declvar nl ListaDeclVar | ε
+void Parser::ListaDeclVar() {
+    while (check(T_ID) && lexer.peekToken().type == T_COLON) {
+        declvar();
+        nl();
+    }
+}
+
+// ListaComando → comando nl ListaComando | ε
+void Parser::ListaComando() {
+    while (
+        check(T_IF) ||
+        check(T_WHILE) ||
+        check(T_RETURN) ||
+        check(T_ID)
+    ) {
+        comando();
+        nl();
+    }
+}
+
+// params → ListaParam | ε
+void Parser::params() {
+    if (check(T_ID))
+        ListaParam();
+}
+
+// ListaParam → parametro MasParam
+void Parser::ListaParam() {
+    parametro();
+    MasParam();
+}
+
+// MasParam → ',' parametro MasParam | ε
+void Parser::MasParam() {
+    if (check(T_COMMA)) {
+        expect(T_COMMA);
+        parametro();
+        MasParam();
+    }
+}
+
+// parametro → ID ':' tipo
+void Parser::parametro() {
+    expect(T_ID);
+    expect(T_COLON);
+    tipo();
+}
+
+// declvar → ID ':' tipo
+void Parser::declvar() {
+    expect(T_ID);
+    expect(T_COLON);
+    tipo();
+}
+
+// tipo → tipobase | '[' ']' tipo
+void Parser::tipo() {
+
+    if (check(T_INT) || check(T_BOOL) || check(T_CHAR) || check(T_STRING)) {
+        advance();
+        return;
     }
 
-    else if (current.type == TokenType::IF) {  // Caso: if
-        match(TokenType::IF);                  // Consume 'if'
-        match(TokenType::LPAREN);              // Consume '('
-        cond();                                // Procesa la condicion
-        match(TokenType::RPAREN);              // Consume ')'
-        stmt();                                // Procesa la sentencia del if
-        stmt_else();                           // Procesa opcionalmente el else
+    if (check(T_LBRACK)) {
+        expect(T_LBRACK);
+        expect(T_RBRACK);
+        tipo();
+        return;
     }
 
-    else if (current.type == TokenType::LBRACE) {  // Caso: bloque '{ ... }'
-        match(TokenType::LBRACE);                  // Consume '{'
-        stmts();                                   // Procesa las sentencias internas
-        match(TokenType::RBRACE);                  // Consume '}'
+    error("Se esperaba un tipo o '[ ] tipo'");
+}
+
+// comando → cmdif | cmdwhile | cmdreturn | comandoID
+void Parser::comando() {
+    if (check(T_IF))         cmdif();
+    else if (check(T_WHILE)) cmdwhile();
+    else if (check(T_RETURN)) cmdreturn();
+    else                     comandoID();
+}
+
+// comandoID → ID comandoID'
+void Parser::comandoID() {
+    expect(T_ID);
+    comandoIDp();
+}
+
+// comandoID' → '(' listaexp ')' | VarSuffix '=' exp
+void Parser::comandoIDp() {
+    if (check(T_LPAREN)) {
+        expect(T_LPAREN);
+        listaexp();
+        expect(T_RPAREN);
+    } else {
+        VarSuffix();
+        expect(T_ASSIGN);
+        exp();
+    }
+}
+
+// cmdif → 'if' exp nl bloque ListaElseIf ElseOpt 'end'
+void Parser::cmdif() {
+    expect(T_IF);
+    exp();
+    nl();
+    bloque();
+    ListaElseIf();
+    ElseOpt();
+    expect(T_END);
+}
+
+// ListaElseIf → 'else' 'if' exp nl bloque ListaElseIf | ε
+void Parser::ListaElseIf() {
+    while (check(T_ELSE) && lexer.peekToken().type == T_IF) {
+        expect(T_ELSE);
+        expect(T_IF);
+        exp();
+        nl();
+        bloque();
+    }
+}
+
+// ElseOpt → 'else' nl bloque | ε
+void Parser::ElseOpt() {
+    if (check(T_ELSE)) {
+        expect(T_ELSE);
+        nl();
+        bloque();
+    }
+}
+
+// cmdwhile → 'while' exp nl bloque 'loop'
+void Parser::cmdwhile() {
+    expect(T_WHILE);
+    exp();
+    nl();
+    bloque();
+    expect(T_LOOP);
+}
+
+// cmdreturn → 'return' CmdReturn'
+void Parser::cmdreturn() {
+    expect(T_RETURN);
+    CmdReturnp();
+}
+
+// CmdReturn' → exp | ε
+void Parser::CmdReturnp() {
+    if (
+        check(T_ID) || check(T_NUM) || check(T_STR) ||
+        check(T_TRUE) || check(T_FALSE) ||
+        check(T_LPAREN) || check(T_NEW) ||
+        check(T_MINUS) || check(T_NOT)
+    ) {
+        exp();
+    }
+}
+
+// var → ID VarSuffix
+void Parser::var() {
+    expect(T_ID);
+    VarSuffix();
+}
+
+// VarSuffix → '[' exp ']' VarSuffix | ε
+void Parser::VarSuffix() {
+    while (check(T_LBRACK)) {
+        expect(T_LBRACK);
+        exp();
+        expect(T_RBRACK);
+    }
+}
+
+// listaexp → ListaExpNoVacia | ε
+void Parser::listaexp() {
+    if (
+        check(T_ID) || check(T_NUM) || check(T_STR) ||
+        check(T_TRUE) || check(T_FALSE) ||
+        check(T_LPAREN) || check(T_NEW) ||
+        check(T_MINUS) || check(T_NOT)
+    ) {
+        ListaExpNoVacia();
+    }
+}
+
+// ListaExpNoVacia → exp MasExp
+void Parser::ListaExpNoVacia() {
+    exp();
+    MasExp();
+}
+
+// MasExp → ',' exp MasExp | ε
+void Parser::MasExp() {
+    if (check(T_COMMA)) {
+        expect(T_COMMA);
+        exp();
+        MasExp();
+    }
+}
+
+// exp → exp_or
+void Parser::exp() {
+    exp_or();
+}
+
+// exp_or → exp_and exp_or'
+void Parser::exp_or() {
+    exp_and();
+    exp_orp();
+}
+
+// exp_or' → 'or' exp_and exp_or' | ε
+void Parser::exp_orp() {
+    while (check(T_OR)) {
+        expect(T_OR);
+        exp_and();
+    }
+}
+
+// exp_and → exp_rel exp_and'
+void Parser::exp_and() {
+    exp_rel();
+    exp_andp();
+}
+
+// exp_and' → 'and' exp_rel exp_and' | ε
+void Parser::exp_andp() {
+    while (check(T_AND)) {
+        expect(T_AND);
+        exp_rel();
+    }
+}
+
+// exp_rel → exp_add exp_rel'
+void Parser::exp_rel() {
+    exp_add();
+    exp_relp();
+}
+
+// exp_rel' → OpRel exp_add exp_rel' | ε
+void Parser::exp_relp() {
+    while (
+        check(T_GT) || check(T_LT) ||
+        check(T_GE) || check(T_LE) ||
+        check(T_EQ) || check(T_NEQ)
+    ) {
+        advance();
+        exp_add();
+    }
+}
+
+// exp_add → exp_mul exp_add'
+void Parser::exp_add() {
+    exp_mul();
+    exp_addp();
+}
+
+// exp_add' → OpAdd exp_mul exp_add' | ε
+void Parser::exp_addp() {
+    while (check(T_PLUS) || check(T_MINUS)) {
+        advance();
+        exp_mul();
+    }
+}
+
+// exp_mul → exp_unary exp_mul'
+void Parser::exp_mul() {
+    exp_unary();
+    exp_mulp();
+}
+
+// exp_mul' → OpMul exp_unary exp_mul' | ε
+void Parser::exp_mulp() {
+    while (check(T_MUL) || check(T_DIV)) {
+        advance();
+        exp_unary();
+    }
+}
+
+// exp_unary → 'not' exp_unary | '-' exp_unary | exp_primary
+void Parser::exp_unary() {
+    if (check(T_NOT) || check(T_MINUS)) {
+        advance();
+        exp_unary();
+    } else {
+        exp_primary();
+    }
+}
+
+// exp_primary → NUM | STR | true | false | new '[' exp ']' tipo | '(' exp ')' | ID RefResto
+void Parser::exp_primary() {
+
+    if (check(T_NUM) || check(T_STR) || check(T_TRUE) || check(T_FALSE)) {
+        advance();
+        return;
     }
 
+    if (check(T_NEW)) {
+        expect(T_NEW);
+        expect(T_LBRACK);
+        exp();
+        expect(T_RBRACK);
+        tipo();
+        return;
+    }
+
+    if (check(T_LPAREN)) {
+        expect(T_LPAREN);
+        exp();
+        expect(T_RPAREN);
+        return;
+    }
+
+    if (check(T_ID)) {
+        expect(T_ID);
+        RefResto();
+        return;
+    }
+
+    error("Se esperaba una expresion");
+}
+
+// RefResto → '(' listaexp ')' | VarSuffix
+void Parser::RefResto() {
+    if (check(T_LPAREN)) {
+        expect(T_LPAREN);
+        listaexp();
+        expect(T_RPAREN);
+    }
     else {
-        syntaxError("sentencia no valida");   // Ningun caso coincide -> error
+        VarSuffix();
     }
 }
 
-// ---------------------------------------------------------------
-// stmt_else -> else stmt | epsilon
-// ---------------------------------------------------------------
-void Parser::stmt_else() {
+// ===================================================================
+// TOKEN TO STRING (VERSION PROGRAMATICA, NO EN ESPAÑOL)
+// ===================================================================
+std::string tokenToString(TokenType t) {
+    switch (t) {
+        case T_FUN: return "FUN";
+        case T_IF: return "IF";
+        case T_ELSE: return "ELSE";
+        case T_WHILE: return "WHILE";
+        case T_END: return "END";
+        case T_LOOP: return "LOOP";
+        case T_RETURN: return "RETURN";
+        case T_NEW: return "NEW";
 
-    if (current.type == TokenType::ELSE) {     // Si aparece un else
-        match(TokenType::ELSE);                // Consume 'else'
-        stmt();                                // Procesa la sentencia luego de else
+        case T_TRUE: return "TRUE";
+        case T_FALSE: return "FALSE";
+
+        case T_INT: return "INT";
+        case T_BOOL: return "BOOL";
+        case T_CHAR: return "CHAR";
+        case T_STRING: return "STRING";
+
+        case T_OR: return "OR";
+        case T_AND: return "AND";
+        case T_NOT: return "NOT";
+
+        case T_ID: return "ID";
+        case T_NUM: return "NUM";
+        case T_STR: return "STR";
+
+        case T_GT: return "GT";
+        case T_LT: return "LT";
+        case T_GE: return "GE";
+        case T_LE: return "LE";
+        case T_EQ: return "EQ";
+        case T_NEQ: return "NEQ";
+
+        case T_PLUS: return "PLUS";
+        case T_MINUS: return "MINUS";
+        case T_MUL: return "MUL";
+        case T_DIV: return "DIV";
+
+        case T_ASSIGN: return "ASSIGN";
+
+        case T_LBRACK: return "LBRACK";
+        case T_RBRACK: return "RBRACK";
+        case T_LPAREN: return "LPAREN";
+        case T_RPAREN: return "RPAREN";
+        case T_COMMA: return "COMMA";
+        case T_COLON: return "COLON";
+
+        case T_NL: return "NL";
+        case T_EOF: return "EOF";
+        case T_ERROR: return "ERROR";
+
+        default: return "UNKNOWN";
     }
-    // Si no aparece 'else', esta regla produce epsilon
-}
-
-// ---------------------------------------------------------------
-// assign -> ID '=' expr
-// ---------------------------------------------------------------
-void Parser::assign() {
-
-    match(TokenType::ID);                      // Consume el identificador
-    match(TokenType::ASSIGN);                  // Consume '='
-    expr();                                    // Procesa la expresion de la derecha
-}
-
-// ---------------------------------------------------------------
-// cond -> expr relop expr
-// ---------------------------------------------------------------
-void Parser::cond() {
-    expr();                                    // Primera expresion
-    relop();                                   // Operador relacional
-    expr();                                    // Segunda expresion
-}
-
-// ---------------------------------------------------------------
-// relop -> '<' | '>' | '==' | '!='
-// ---------------------------------------------------------------
-void Parser::relop() {
-
-    if (current.type == TokenType::LT)         // Caso '<'
-        match(TokenType::LT);
-
-    else if (current.type == TokenType::GT)    // Caso '>'
-        match(TokenType::GT);
-
-    else if (current.type == TokenType::EQEQ)  // Caso '=='
-        match(TokenType::EQEQ);
-
-    else if (current.type == TokenType::NEQ)   // Caso '!='
-        match(TokenType::NEQ);
-
-    else
-        syntaxError("operador relacional esperado"); // Si no hay ninguno -> error
-}
-
-// ---------------------------------------------------------------
-// expr -> term expr'
-// ---------------------------------------------------------------
-void Parser::expr() {
-    term();                                    // Procesa un termino
-    exprPrime();                               // Procesa sumas/restas opcionales
-}
-
-// ---------------------------------------------------------------
-// expr' -> + term expr' | - term expr' | epsilon
-// ---------------------------------------------------------------
-void Parser::exprPrime() {
-
-    if (current.type == TokenType::PLUS) {     // Caso '+'
-        match(TokenType::PLUS);                // Consume '+'
-        term();                                // Procesa siguiente termino
-        exprPrime();                           // Sigue analizando expr'
-    }
-
-    else if (current.type == TokenType::MINUS) { // Caso '-'
-        match(TokenType::MINUS);               // Consume '-'
-        term();                                // Procesa siguiente termino
-        exprPrime();                           // Sigue con expr'
-    }
-
-    // Si no es + ni -, es epsilon
-}
-
-// ---------------------------------------------------------------
-// term -> factor term'
-// ---------------------------------------------------------------
-void Parser::term() {
-    factor();                                  // Procesa un factor
-    termPrime();                               // Procesa multiplicaciones/divisiones opcionales
-}
-
-// ---------------------------------------------------------------
-// term' -> * factor term' | / factor term' | epsilon
-// ---------------------------------------------------------------
-void Parser::termPrime() {
-
-    if (current.type == TokenType::STAR) {     // Caso '*'
-        match(TokenType::STAR);                // Consume '*'
-        factor();                              // Procesa el factor
-        termPrime();                           // Llamado recursivo
-    }
-
-    else if (current.type == TokenType::SLASH) { // Caso '/'
-        match(TokenType::SLASH);               // Consume '/'
-        factor();                              // Procesa el factor
-        termPrime();                           // Llamado recursivo
-    }
-
-    // Si no coincide, epsilon
-}
-
-// ---------------------------------------------------------------
-// factor -> ID | NUM | '(' expr ')'
-// ---------------------------------------------------------------
-void Parser::factor() {
-
-    if (current.type == TokenType::ID)          // Caso ID
-        match(TokenType::ID);
-
-    else if (current.type == TokenType::NUM)    // Caso NUM
-        match(TokenType::NUM);
-
-    else if (current.type == TokenType::LPAREN) {// Caso '(' expr ')'
-        match(TokenType::LPAREN);               // Consume '('
-        expr();                                 // Procesa expresion interna
-        match(TokenType::RPAREN);               // Consume ')'
-    }
-
-    else
-        syntaxError("factor no valido");        // Si nada coincide, error
 }

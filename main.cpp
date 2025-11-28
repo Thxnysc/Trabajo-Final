@@ -1,8 +1,3 @@
-// ===============================================
-// main.cpp
-// Punto de entrada del programa
-// ===============================================
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -13,7 +8,7 @@ using namespace std;
 
 string readFile(const string& filename) {
     ifstream in(filename);
-    if (!in) throw runtime_error("no se pudo abrir el archivo");
+    if (!in) throw runtime_error("No se pudo abrir el archivo");
 
     string content, line;
     while (getline(in, line)) {
@@ -23,30 +18,48 @@ string readFile(const string& filename) {
 }
 
 int main(int argc, char* argv[]) {
-
     if (argc < 2) {
-        cerr << "Uso: parser <archivo.m0>" << endl;
+        cerr << "Uso: mini0 <archivo.m0>\n";
         return 1;
     }
 
     try {
-        // Lee todo el archivo de entrada
         string text = readFile(argv[1]);
 
-        // Creamos el lexer con el contenido del archivo
         Lexer lexer(text);
+        Token tok;
+        bool hayErrorLex = false;
+        Token errorTok;
 
-        // ===============================================
-        // MODO MOSTRAR TOKENS
-        // Aquí activamos el método que imprime
-        // cada token, su tipo y los errores léxicos.
-        // ===============================================
-        lexer.scanAndPrint();
+        do {
+            tok = lexer.nextToken();
+
+            cout << "[Linea " << tok.line << "] Token: "
+                 << tok.lexema << "  Tipo: "
+                 << tokenToString(tok.type) << endl;
+
+            if (tok.type == T_ERROR && !hayErrorLex) {
+                hayErrorLex = true;
+                errorTok = tok;
+            }
+
+        } while (tok.type != T_EOF);
+
+        if (hayErrorLex) {
+            cerr << "Error lexico en linea " << errorTok.line
+                 << ": simbolo o literal invalido '" << errorTok.lexema
+                 << "'\n";
+            return 1;
+        }
+
+        Lexer lexer2(text);
+        Parser parser(lexer2);
+        parser.parse();
+
         return 0;
 
-
-    } catch (...) {
+    } catch (const exception& e) {
+        cerr << "ERROR: " << e.what() << endl;
         return 1;
     }
 }
-
