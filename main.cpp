@@ -30,17 +30,23 @@ int main(int argc, char* argv[]) {
     }
 
     try {
+        // Lee todo el archivo de entrada
         string text = readFile(argv[1]);
 
+        // Creamos el lexer con el contenido del archivo
         Lexer lexer(text);
-        Parser parser(lexer);
 
-        parser.program();
-
-        cout << "Analisis sintactico exitoso. Programa valido." << endl;
+        // ===============================================
+        // MODO MOSTRAR TOKENS
+        // Aquí activamos el método que imprime
+        // cada token, su tipo y los errores léxicos.
+        // ===============================================
+        lexer.scanAndPrint();
         return 0;
+
 
     } catch (...) {
         return 1;
     }
 }
+

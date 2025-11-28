@@ -26,6 +26,7 @@ private:
 public:
     Lexer(const string& text);  // Constructor que recibe el codigo fuente completo
     Token nextToken();          // Devuelve el siguiente token
+    void scanAndPrint();        // Imprime linea por linea
 };
 
 #endif

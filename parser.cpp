@@ -18,6 +18,117 @@ Parser::Parser(Lexer& lex)      // El constructor recibe una referencia al lexer
     current = lexer.nextToken(); // Leemos el primer token inmediatamente
 }
 
+// ===============================================================
+// Recorre TODO el código fuente y va imprimiendo:
+// ===============================================================
+void Lexer::scanAndPrint() {
+
+    Token tok;  // Variable que almacenará el token actual
+
+    do {
+        // Pedimos el siguiente token del analizador léxico
+        tok = nextToken();
+
+        // Imprimimos la línea donde fue encontrado
+        cout << "Linea " << tok.line << " -> ";
+
+        // Mostramos el texto tal como aparece en el archivo
+        cout << "Lexema: '" << tok.lexeme << "'  |  ";
+
+        // Dependiendo del tipo de token, escribimos su nombre
+        switch (tok.type) {
+
+            case TokenType::INT:
+                cout << "Token: INT"; 
+                break;
+
+            case TokenType::IF:
+                cout << "Token: IF"; 
+                break;
+
+            case TokenType::ELSE:
+                cout << "Token: ELSE"; 
+                break;
+
+            case TokenType::ID:
+                cout << "Token: ID"; 
+                break;
+
+            case TokenType::NUM:
+                cout << "Token: NUM"; 
+                break;
+
+            case TokenType::LPAREN:
+                cout << "Token: LPAREN"; 
+                break;
+
+            case TokenType::RPAREN:
+                cout << "Token: RPAREN"; 
+                break;
+
+            case TokenType::LBRACE:
+                cout << "Token: LBRACE"; 
+                break;
+
+            case TokenType::RBRACE:
+                cout << "Token: RBRACE"; 
+                break;
+
+            case TokenType::SEMI:
+                cout << "Token: SEMI"; 
+                break;
+
+            case TokenType::ASSIGN:
+                cout << "Token: ASSIGN"; 
+                break;
+
+            case TokenType::PLUS:
+                cout << "Token: PLUS"; 
+                break;
+
+            case TokenType::MINUS:
+                cout << "Token: MINUS"; 
+                break;
+
+            case TokenType::STAR:
+                cout << "Token: STAR"; 
+                break;
+
+            case TokenType::SLASH:
+                cout << "Token: SLASH"; 
+                break;
+
+            case TokenType::LT:
+                cout << "Token: LT"; 
+                break;
+
+            case TokenType::GT:
+                cout << "Token: GT"; 
+                break;
+
+            case TokenType::EQEQ:
+                cout << "Token: EQEQ"; 
+                break;
+
+            case TokenType::NEQ:
+                cout << "Token: NEQ"; 
+                break;
+
+            case TokenType::END_OF_FILE:
+                cout << "Token: EOF"; 
+                break;
+
+            // Cuando el token es ERROR, aquí lo mostramos claramente
+            case TokenType::ERROR:
+                cout << "ERROR: simbolo no reconocido"; 
+                break;
+        }
+
+        cout << endl; // Salto de línea después de cada token impreso
+
+    } while (tok.type != TokenType::END_OF_FILE); // Termina al llegar a EOF
+}
+
 // ---------------------------------------------------------------
 // Manejo de errores sintacticos
 // ---------------------------------------------------------------
